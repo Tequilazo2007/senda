@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>La Senda de Mamani: Leyendas de Bolivia</title>
+    <meta name="description" content="Un roguelike de cartas inspirado en la mitología boliviana. Lucha contra criaturas ancestrales en este épico juego de estrategia.">
+    <meta name="theme-color" content="#0a1628">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Fuente Retro Pixelada de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>
+        /* ==========================================================================
+        1. ESTILOS GLOBALES Y RESETEO
+        ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #121218;
+            color: #ffffff;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        /* ==========================================================================
+        2. CONTENEDOR ADAPTATIVO (FUERZA RELACIÓN DE ASPECTO 16:9)
+        ========================================================================== */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 56.25vw;
+            max-height: 100vh;
+            max-height: -webkit-fill-available;
+            max-width: 177.78vh;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+            background-color: #000000;
+            margin: auto;
+        }
+
+        /* ==========================================================================
+        3. CANVAS PRINCIPAL DEL JUEGO
+        ========================================================================== */
+        #menu-ui {
+            background: transparent;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1;
+            image-rendering: -moz-crisp-edges !important;
+            image-rendering: -webkit-crisp-edges !important;
+            image-rendering: pixelated !important;
+            image-rendering: crisp-edges !important;
+            display: block;
+        }
+
+        /* ==========================================================================
+        4. INTERFAZ HTML SUPERPUESTA (MENÚS Y BOTONES)
+        ========================================================================== */
+        .overlay-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2%;
+        }
+
+        .game-title {
+            color: #ffcc00;
+            font-size: 2.5vw;
+            text-shadow: 0.3vw 0.3vw 0px #000000;
+            margin-bottom: 1%;
+            letter-spacing: 0.2vw;
+        }
+
+        .game-subtitle {
+            color: #e6005c;
+            font-size: 1.1vw;
+            text-shadow: 0.15vw 0.15vw 0px #000000;
+            margin-bottom: 5%;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5vw;
+            width: 38%;
+        }
+
+        .btn-retro {
+            background-color: #121218;
+            color: #ffffff;
+            border: 0.3vw solid #ffcc00;
+            padding: 1.2vw 1vw;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.9vw;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0px 0.4vw 0px #000000;
+            transition: transform 0.05s ease, box-shadow 0.05s ease;
+        }
+
+        .btn-retro:hover {
+            background-color: #ffcc00;
+            color: #121218;
+            transform: translateY(-0.1vw);
+            box-shadow: 0px 0.5vw 0px #000000;
+        }
+
+        .btn-retro:active {
+            transform: translateY(0.2vw);
+            box-shadow: 0px 0.2vw 0px #000000;
+        }
+
+        .btn-retro:disabled,
+        .btn-retro.disabled {
+            background-color: #22222b !important;
+            color: #555566 !important;
+            border-color: #444455 !important;
+            box-shadow: 0px 0.2vw 0px #000000 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+            opacity: 0.6;
+        }
+
+        @keyframes girar {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-90deg); }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- =====================================================
+         PANTALLA DE ROTACIÓN (solo visible en portrait)
+         z-index 9999 bloquea todo lo demás
+    ====================================================== -->
+    <div id="rotate-screen" style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #000;
+        z-index: 9999;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        font-family: 'Press Start 2P', monospace;
+        gap: 4vw;
+    ">
+        <!-- ícono de teléfono girando -->
+        <div style="font-size: 18vw; animation: girar 2s ease-in-out infinite alternate;">&#128261;</div>
+        <p style="color: #ffcc00; font-size: 4vw; line-height: 1.6; margin: 0 8vw;">
+            GIRA TU<br>DISPOSITIVO
+        </p>
+        <p style="color: #888; font-size: 2vw; margin: 0;">El juego requiere modo horizontal</p>
+    </div>
+
+    <!-- Contenedor maestro del juego -->
+    <div id="game-container">
+
+        <!-- Aquí es donde se dibujará todo el combate y el mapa del juego -->
+        <canvas id="gameCanvas" width="480" height="270"
+            style="image-rendering: pixelated; image-rendering: crisp-edges;"></canvas>
+
+        <!-- Capa de interfaz para el HUD del juego -->
+        <div id="hud-ui" class="overlay-ui"
+            style="display: none; pointer-events: none; justify-content: flex-start; align-items: flex-start; padding: 3% 4%; z-index: 200;">
+            <div id="hud-texto"
+                style="color: #2ecc71; font-size: 1.2vw; text-shadow: 0.15vw 0.15vw 0px #000000; text-align: left; line-height: 1.8vw; font-family: 'Press Start 2P', monospace;">
+                <!-- Aquí meteremos el texto dinámicamente con JS -->
+            </div>
+
+            <!-- Botón fijo para volver al Menú Principal desde cualquier pantalla -->
+            <button onclick="abrirMenuPausa()" style="
+                    pointer-events: auto;
+                    position: absolute;
+                    top: 2%;
+                    right: 2%;
+                    background: #121218;
+                    color: #ffcc00;
+                    border: 0.2vw solid #ffcc00;
+                    padding: 0.5vw 1vw;
+                    font-family: 'Press Start 2P', monospace;
+                    font-size: 0.65vw;
+                    cursor: pointer;
+                    box-shadow: 0 0.3vw 0 #000;
+                    transition: transform 0.05s, box-shadow 0.05s;
+                "
+                onmouseover="this.style.background='#ffcc00';this.style.color='#121218';this.style.transform='translateY(-0.1vw)'"
+                onmouseout="this.style.background='#121218';this.style.color='#ffcc00';this.style.transform=''">&#9776;
+                MEN&Uacute;</button>
+
+            <!-- Contenedor para las etiquetas de los nodos del mapa -->
+            <div id="nodos-ui"
+                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+        </div>
+
+        <!-- Capa de interfaz para el Menú de Inicio -->
+        <div id="menu-ui" class="overlay-ui">
+            <h1 class="game-title">LA SENDA DE MAMANI</h1>
+            <h2 class="game-subtitle">La Senda de Bolivia</h2>
+
+            <div class="button-group">
+                <button class="btn-retro" onmouseover="sistemaAudio.sfx('hover')"
+                    onclick="sistemaAudio.inicializar(); sistemaAudio.sfx('confirmar'); iniciarViaje()">INICIAR
+                    VIAJE</button>
+                <button class="btn-retro" onmouseover="sistemaAudio.sfx('hover')"
+                    onclick="sistemaAudio.inicializar(); sistemaAudio.sfx('click'); mostrarCreditos()">CR&Eacute;DITOS</button>
+            </div>
+        </div>
+
+        <!-- Capa de interfaz para la pantalla de Créditos -->
+        <div id="creditos-ui" class="overlay-ui"
+            style="display: none; background: rgba(18, 18, 24, 0.95); flex-direction: column; justify-content: center; align-items: center; font-family: 'Press Start 2P', monospace; text-align: center;">
+            <h2 style="color: #ffcc00; font-size: 1.5vw; margin-bottom: 2%; text-shadow: 2px 2px 0px #000;">
+                DESARROLLADORES</h2>
+
+            <p style="color: #ffffff; font-size: 0.8vw; line-height: 1.6vw; margin-bottom: 3%;">
+                Proyecto creado por la Comunidad de Ingeniería de Sistemas<br>
+                <span style="color: #2ecc71;">Universidad Tecnológica de Santa Cruz (UTEPSA)</span><br><br>
+                Diseño y Pixel Art de Personajes: Tus Compañeros de Equipo<br>
+                Programación de Motor: Mamani &amp; Team<br><br>
+                ¡Gracias por jugar!
+            </p>
+
+            <button class="btn-retro" onclick="sistemaAudio.sfx('retroceder'); cerrarCreditos()"
+                style="font-size: 0.8vw; padding: 1% 2%;">VOLVER AL
+                MEN&Uacute;</button>
+        </div>
+
+
+        <!-- Menú de Pausa Unificado -->
+        <div id="pause-menu-ui" class="overlay-ui"
+            style="display: none; background: rgba(18, 18, 24, 0.95); flex-direction: column; justify-content: center; align-items: center; font-family: 'Press Start 2P', monospace; text-align: center;">
+            <h2 style="color: #ffcc00; font-size: 2vw; margin-bottom: 5%; text-shadow: 2px 2px 0px #000;">
+                PAUSA</h2>
+
+            <div style="display: flex; flex-direction: column; gap: 1.5vw; width: 40%;">
+                <button class="btn-retro" onclick="cerrarMenuPausa()"
+                    style="font-size: 1vw; padding: 3% 2%;">CONTINUAR</button>
+                <button class="btn-retro" onclick="abrirStats()"
+                    style="font-size: 1vw; padding: 3% 2%;">ESTAD&Iacute;STICAS</button>
+                <button class="btn-retro" id="btn-pause-bolsa" onclick="abrirEquipoDesdePausa()"
+                    style="font-size: 1vw; padding: 3% 2%;">BOLSA</button>
+                <button class="btn-retro" id="btn-pause-mazo" onclick="abrirMazo()"
+                    style="font-size: 1vw; padding: 3% 2%;">MAZOS</button>
+                <button class="btn-retro" onclick="volverAlMenuPrincipal()"
+                    style="font-size: 1vw; padding: 3% 2%;">VOLVER AL MEN&Uacute;</button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Estadísticas -->
+        <div id="stats-ui" class="overlay-ui"
+            style="display: none; background: rgba(18, 18, 24, 0.95); flex-direction: column; justify-content: center; align-items: center; font-family: 'Press Start 2P', monospace; text-align: center;">
+            <h2 style="color: #2ecc71; font-size: 2vw; margin-bottom: 5%; text-shadow: 2px 2px 0px #000;">
+                ESTAD&Iacute;STICAS</h2>
+
+            <div id="stats-container"
+                style="display: flex; flex-direction: column; gap: 2vw; color: white; font-size: 1.2vw; text-align: left; background: rgba(255,255,255,0.05); padding: 5%; border-radius: 1vw; border: 2px solid #555;">
+                <!-- Se llena con JS -->
+            </div>
+
+            <button class="btn-retro" onclick="cerrarStats()"
+                style="font-size: 1vw; padding: 2% 4%; margin-top: 5%;">VOLVER</button>
+        </div>
+
+        <!-- Pantalla de Mazo -->
+        <div id="mazo-ui" class="overlay-ui"
+            style="display: none; background: rgba(18, 18, 24, 0.95); flex-direction: column; justify-content: flex-start; align-items: center; font-family: 'Press Start 2P', monospace; text-align: center; overflow-y: auto; padding: 2% 0;">
+            <h2 style="color: #3498db; font-size: 2vw; margin-bottom: 1%; text-shadow: 2px 2px 0px #000;">
+                TU MAZO ACTUAL</h2>
+            <div style="color: #ffffff; font-size: 0.8vw; margin-bottom: 2%;">Arrastra cartas desde tu colección a su
+                ranura para equiparlas</div>
+
+            <div id="mazo-activos-container"
+                style="display: flex; gap: 2vw; justify-content: center; width: 90%; padding: 1%; margin-bottom: 2%;">
+                <!-- Se llena con JS -->
+            </div>
+
+            <h2
+                style="color: #e67e22; font-size: 1.5vw; margin-top: 1%; margin-bottom: 1%; text-shadow: 2px 2px 0px #000;">
+                COLECCI&Oacute;N</h2>
+
+            <div id="mazo-coleccion-container"
+                style="display: flex; flex-wrap: wrap; gap: 1.5vw; justify-content: center; width: 90%; padding: 1%; margin-bottom: 4%; overflow-y: auto; max-height: 35vh;">
+                <!-- Se llena con JS -->
+            </div>
+
+            <button class="btn-retro" onclick="cerrarMazo()"
+                style="font-size: 1vw; padding: 1% 2%; margin-top: auto; margin-bottom: 2%;">VOLVER</button>
+        </div>
+
+        <div id="equipamiento-ui" class="overlay-ui"
+            style="display: none; background: rgba(18, 18, 24, 0.95); flex-direction: column; justify-content: flex-start; align-items: center; font-family: 'Press Start 2P', monospace; text-align: center; overflow-y: auto; padding: 2% 0;">
+            <h2 style="color: #e67e22; font-size: 1.5vw; margin-bottom: 2%; text-shadow: 2px 2px 0px #000;">
+                BOLSA</h2>
+            <div style="color: #ffffff; font-size: 0.8vw; margin-bottom: 2%;">Haz clic en un consumible para equiparlo o
+                desequiparlo (M&aacute;x 3)</div>
+
+            <!-- Slots de Combate -->
+            <div id="equipo-slots" style="display: flex; gap: 2vw; margin-bottom: 4%;">
+                <!-- Se llenan por JS -->
+            </div>
+
+            <h3 style="color: #ffcc00; font-size: 1vw; margin-bottom: 1%;">TU MOCHILA</h3>
+
+            <!-- Inventario Grid -->
+            <div id="equipo-inventario"
+                style="display: flex; flex-wrap: wrap; gap: 1vw; justify-content: center; width: 80%; max-height: 40%; overflow-y: auto; padding: 1%; margin-bottom: 4%;">
+                <!-- Se llenan por JS -->
+            </div>
+
+            <button class="btn-retro" onclick="sistemaAudio.sfx('retroceder'); cerrarEquipo()"
+                style="font-size: 0.8vw; padding: 1% 2%; margin-top: auto; margin-bottom: 2%;">VOLVER</button>
+        </div>
+
+    </div>
+
+    <!-- Script principal del juego -->
+    <script src="app.js"></script>
+
+    <!-- Registro del Service Worker (PWA) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado con exito!', reg))
+                    .catch(err => console.log('Fallo al registrar el Service Worker', err));
+            });
+        }
+    </script>
+
+</body>
+
+</html>
